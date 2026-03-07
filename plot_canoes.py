@@ -19,7 +19,8 @@ from pathlib import Path
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib.ticker as ticker
+#import seaborn as sns
 
 
 DATA_PATH = Path("./data/canoe_comparative_summary_i16.csv")
@@ -48,10 +49,10 @@ def categorise_cost(cost_str: str) -> str:
     if not s:
         return "Unknown"
     # If multiple qualifiers exist, prioritise the "highest" mentioned.
-    if re.search(r"\b(high)\b", s):
-        return "Costly"
     if re.search(r"\b(moderate|low-moderate|moderate-high)\b", s):
         return "Basic/ut"
+    if re.search(r"\b(high)\b", s):
+        return "Costly"
     if re.search(r"\b(low)\b", s):
         return "Affordable"
 
@@ -214,7 +215,7 @@ def main() -> None:
     df["skills"] = df["sorted_skills"].apply(split_skills)
 
     # Style
-    sns.set_theme(style="white")
+    #sns.set_theme(style="white")
     cost_order = ["Affordable", "Basic/ut", "Costly", "Unknown"]
 
     # Delegate plotting to a helper that uses axes (`ax`) for all plots
@@ -286,11 +287,12 @@ def main() -> None:
         child_pivot = child_pivot[child_col_order]
 
         child_pivot.plot(kind="bar", stacked=True, colormap=colorScale, width=0.85, ax=ax2)
-        ax2.set_title("Children involvement by cost category (all categories)")
+        ax2.set_title("Children involvement by cost category")
         ax2.set_xlabel("Cost category")
         ax2.set_ylabel("Count of vessels")
         ax2.set_xticklabels(ax2.get_xticklabels(), rotation=0)
-        ax2.legend(title="Children involvement", frameon=False)#bbox_to_anchor=(1.05, 1), loc="upper left"
+        ax2.legend(frameon=False)#bbox_to_anchor=(1.05, 1), loc="upper left"
+        ax2.yaxis.set_major_formatter(ticker.StrMethodFormatter("{x:.0f}"))
 
         # 3) Materials by cost category
         long_rows = []
