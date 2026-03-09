@@ -70,14 +70,15 @@ def categorise_geography(geo_str: str) -> str:
         return "Unknown"
 
     # If multiple qualifiers exist, prioritise the "highest" mentioned.
-    if re.search(r"\b(australnesia)\b", s):
-        return "Australnesia"
+    if re.search(r"\b(austronesia)\b", s):
+        return "Austronesia"
     if re.search(r"\b(americas)\b", s):
         return "Americas"
-    if re.search(r"\b(artic)\b", s):
-        return "Artic"
-    if re.search(r"\b(general)\b", s):
-        return "General"
+    if re.search(r"\b(several)\b", s):
+        return "Several"
+    if re.search(r"\b(arctic)\b", s):
+        return "Arctic"
+    
     
     # Some rows not here; leave as Unknown unless keywords present.
     return "Unknown"
@@ -201,7 +202,7 @@ def main() -> None:
 
     # Basic checks for expected columns
     expected_cols = {
-        "vessel_name", "sorted_use", "sorted_cost", "sorted_children", "geographical_area", "sorted_materials", "sorted_skills"
+        "vessel_name", "sorted_use", "sorted_cost", "sorted_children", "sorted_geo", "sorted_materials", "sorted_skills"
     }
     missing = expected_cols - set(df.columns)
     if missing:
@@ -210,7 +211,7 @@ def main() -> None:
     # Categorise cost and children involvement
     df["sorted_cost"] = df["sorted_cost"].apply(categorise_cost)
     df["sorted_children"] = df["sorted_children"].apply(categorise_children)
-    df["geographical_area"] = df["geographical_area"].apply(categorise_geography)
+    df["sorted_geo"] = df["sorted_geo"].apply(categorise_geography)
     df["materials"] = df["sorted_materials"].apply(categorise_materials)
     df["skills"] = df["sorted_skills"].apply(split_skills)
 
@@ -220,19 +221,13 @@ def main() -> None:
 
     # Delegate plotting to a helper that uses axes (`ax`) for all plots
     def plot_canoes(df: pd.DataFrame) -> None:
-        # 1) Geographical area distribution as a single 100% bar
-        geo_counts = (
-            df["geographical_area"]
-            .value_counts(normalize=True)
-            .mul(100)
-        )
-        geo_order = geo_counts.index.tolist()
 
         # create five separate figures (one per plot)
         fig1, ax1 = plt.subplots(1, 1, figsize=(12, 8))
         fig2, ax2 = plt.subplots(1, 1, figsize=(12, 6))
         fig3, ax3 = plt.subplots(1, 1, figsize=(12, 6))
         fig4, ax4 = plt.subplots(1, 1, figsize=(12, 6))
+        fig5, ax5 = plt.subplots(1, 1, figsize=(12, 6))
         colorScale = "tab20c"
 
         # 1) Functions of vessels depending on cost
@@ -357,6 +352,39 @@ def main() -> None:
         ax4.set_ylabel("Count of vessels")
         ax4.set_xticklabels(ax4.get_xticklabels(), rotation=35, ha="right")
         ax4.legend(title="Cost category", frameon=False)
+
+        # 5) Top vessel functions distribution per geography (sorted_geo)
+        long_rows = []
+        for _, row in df.iterrows():
+            uses = split_uses(row["sorted_use"])
+            if not uses:
+                uses = ["(unspecified)"]
+            for u in uses:
+                long_rows.append({
+                    "vessel_name": row["vessel_name"],
+                    "sorted_geo": row["sorted_geo"],
+                    "function": u,
+                })
+        df_use_geo = pd.DataFrame(long_rows)
+
+        geo_order = ["Austronesia",  "Several", "Americas" , "Arctic", "  " ]
+        top_n = 12
+        top_functions = df_use_geo["function"].value_counts().head(top_n).index.tolist()
+        df_use_geo_top = df_use_geo[df_use_geo["function"].isin(top_functions)].copy()
+
+        geo_pivot = (
+            df_use_geo_top
+            .pivot_table(index="function", columns="sorted_geo", values="vessel_name", aggfunc="count", fill_value=0)
+            .reindex(columns=geo_order, fill_value=0)
+            .sort_values(by=geo_order, ascending=False)
+        )
+
+        geo_pivot.plot(kind="bar", stacked=True, colormap=colorScale, width=0.85, ax=ax5)
+        ax5.set_title("Top vessel functions distribution by geography")
+        ax5.set_xlabel("Function (use)")
+        ax5.set_ylabel("Count of vessels")
+        ax5.set_xticklabels(ax5.get_xticklabels(), rotation=35, ha="right")
+        ax5.legend(title="Geography", frameon=False)
 
         fig1.tight_layout()
         fig2.tight_layout()
